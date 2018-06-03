@@ -5,12 +5,15 @@
     mysql_db_name: chembl_24
     dump_file_url: ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_24_mysql.tar.gz
   tasks:
+  # Ubuntu apt-get install does not interactively ask the root password of mysql during installation.
+  # The below two tasks sets related environment variables of the route password of mysql for the mysql-server package
   - name: Specify MySQL root password before installing
     debconf: name='mysql-server' question='mysql-server/root_password' value='{{mysql_root_password | quote}}' vtype='password'
     become: true
   - name: Confirm MySQL root password before installing
     debconf: name='mysql-server' question='mysql-server/root_password_again' value='{{mysql_root_password | quote}}' vtype='password'
     become: true
+  # This task installs mysql-server, mysql-client(for test purposes), phyton-mysqldb(for remaining ansible tasks)
   - name: Install MySQL
     apt: name={{ item }} update_cache=yes cache_valid_time=3600 state=present
     become: yes
@@ -18,12 +21,15 @@
     - mysql-server
     - mysql-client
     - python-mysqldb
+  # This task configures mysql to start as systemctl service. In the host machines mysql can be started like below:
+  # service mysql {start|stop|status}
   - name: Start the MySQL service
     become: yes
     service:
       name: mysql
       state: started
       enabled: true
+  # I prefer to set the root password the chembl also
   - name: update mysql root password as chembl
     mysql_user:
       name: root
@@ -34,23 +40,28 @@
       check_implicit_admin: yes
       priv: "*.*:ALL,GRANT"
     with_items:
+    # This configuration requires to connect mysql from other machines
       - "{{ ansible_hostname }}"
       - 127.0.0.1
       - 0.0.0.0
       - ::1
       - localhost
   - name: create directory for dumpfile
+    # I preferred to download the remote file to /etc/dumps folder. Let's create it before download
     file:
       state=directory
       path=/etc/dumps
     become: yes
   - name: Download dump file
+    # Download file from the provied url(as a variable above) with name dump.tar.gz
     get_url:
       url: "{{ dump_file_url }}"
       dest: /etc/dumps/dump.tar.gz
       mode: 0777
     become: yes
   - name: Extract dumps.tar.gz
+    # Since Ansible's unarchive task is too slow for opening large files,
+    # I decided to open tar.gz by using shell command of the host system.
     shell: |
       cd /etc/dumps
       rm -rf "{{ mysql_db_name }}" #name of extracted folder is same as the db name
@@ -58,6 +69,7 @@
       chmod -R 777 *
     become: yes
   - name: Create mysql user chembl
+    # This task creates mysql user with name chembl. We need login_user and login_password of root user to create another user.
     mysql_user:
       name: "{{ mysql_user_name }}"
       password: "{{ mysql_root_password }}"
@@ -65,6 +77,13 @@
       login_password: "{{ mysql_root_password }}"
       priv: '*.*:ALL'
       state: present
+  - name: Deşete chembl_24 database
+    mysql_db:
+    # Delete chembl_24 database if existed
+      db: "{{ mysql_db_name }}"
+      login_user: root
+      login_password: "{{ mysql_root_password }}"
+      state: absent
   - name: Create chembl_24 database
     mysql_db:
       db: "{{ mysql_db_name }}"
