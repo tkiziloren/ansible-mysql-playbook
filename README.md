@@ -24,8 +24,31 @@ ansible-playbook ebml.yml --extra-vars "ansible_become_pass=ANSIBLE_HOST_PASSWOR
 ```
 where **ANSIBLE_HOST_PASSWORD** is ssh password of your host machine.
 
-## Authors
+### Testing the installation
 
+**In the host machine** you can run the commands below to test installation.
+```
+mysql -u chembl -pchembl
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| **chembl_24**          |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+mysql> use chembl_24;
+mysql> select * from action_type;
+```
+After the last command you should be able to see all actions in the action_types table;
+
+## Improvements:
+  - In current script if dump file is downloaded it doesn't try to download again. 
+  - As an improvement it should control the checksum for the file in the checksums.txt and downloaded tar.gz file has different checksum from the remote file then it should be downloaded from the scratch.
+
+## Authors
 * **Tevfik Kiziloren** 
 
 ## License
