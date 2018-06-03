@@ -16,13 +16,13 @@ Tested in ubuntu server 16.04
 
 ### Installing
 
-You can run this script in three steps
+You can run this script in 3 steps:
 ```
 git clone https://github.com/tkiziloren/ansible-mysql-playbook.git
 cd ansible-mysql-playbook
 ansible-playbook ebml.yml --extra-vars "ansible_become_pass=ANSIBLE_HOST_PASSWORD"
 ```
-where **ANSIBLE_HOST_PASSWORD** is ssh password of your host machine
+where **ANSIBLE_HOST_PASSWORD** is ssh password of your host machine.
 
 ## Authors
 
