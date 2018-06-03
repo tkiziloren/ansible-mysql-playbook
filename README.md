@@ -22,6 +22,8 @@ git clone https://github.com/tkiziloren/ansible-mysql-playbook.git
 cd ansible-mysql-playbook
 ansible-playbook ebml.yml --extra-vars "ansible_become_pass=ANSIBLE_HOST_PASSWORD"
 ```
+where **ANSIBLE_HOST_PASSWORD** is ssh password of your host machine
+
 ## Authors
 
 * **Tevfik Kiziloren** 
