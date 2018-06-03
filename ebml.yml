@@ -1,7 +1,16 @@
 - hosts: all
   vars:
+    mysql_user_name: chembl
     mysql_root_password: chembl
+    mysql_db_name: chembl_24
+    dump_file_url: ftp://ftp.ebi.ac.uk/pub/databases/chembl/ChEMBLdb/latest/chembl_24_mysql.tar.gz
   tasks:
+  - name: Specify MySQL root password before installing
+    debconf: name='mysql-server' question='mysql-server/root_password' value='{{mysql_root_password | quote}}' vtype='password'
+    become: true
+  - name: Confirm MySQL root password before installing
+    debconf: name='mysql-server' question='mysql-server/root_password_again' value='{{mysql_root_password | quote}}' vtype='password'
+    become: true
   - name: Install MySQL
     apt: name={{ item }} update_cache=yes cache_valid_time=3600 state=present
     become: yes
@@ -10,16 +19,15 @@
     - mysql-client
     - python-mysqldb
   - name: Start the MySQL service
-    sudo: yes
-    service: 
-      name: mysql 
+    become: yes
+    service:
+      name: mysql
       state: started
       enabled: true
   - name: update mysql root password as chembl
-    sudo: yes
-    mysql_user: 
-      name: root 
-      host: "{{ item }}" 
+    mysql_user:
+      name: root
+      host: "{{ item }}"
       password: "{{ mysql_root_password }}"
       login_user: root
       login_password: "{{ mysql_root_password }}"
@@ -30,8 +38,43 @@
       - 127.0.0.1
       - 0.0.0.0
       - ::1
-      - localhost 
-  - name: Create chembl user
-    mysql_user: user=chembl password={{mysql_root_password}} priv=*.*.ALL state=present
-  - name: Create chembl_23 database
-    mysql_db: db=chembl23 state=present
+      - localhost
+  - name: create directory for dumpfile
+    file:
+      state=directory
+      path=/etc/dumps
+    become: yes
+  - name: Download dump file
+    get_url:
+      url: "{{ dump_file_url }}"
+      dest: /etc/dumps/dump.tar.gz
+      mode: 0777
+    become: yes
+  - name: Extract dumps.tar.gz
+    shell: |
+      cd /etc/dumps
+      rm -rf "{{ mysql_db_name }}" #name of extracted folder is same as the db name
+      tar xvf dump.tar.gz
+      chmod -R 777 *
+    become: yes
+  - name: Create mysql user chembl
+    mysql_user:
+      name: "{{ mysql_user_name }}"
+      password: "{{ mysql_root_password }}"
+      login_user: root
+      login_password: "{{ mysql_root_password }}"
+      priv: '*.*:ALL'
+      state: present
+  - name: Create chembl_24 database
+    mysql_db:
+      db: "{{ mysql_db_name }}"
+      login_user: root
+      login_password: "{{ mysql_root_password }}"
+      state: present
+  - name: Restore database
+    mysql_db:
+      name: "{{ mysql_db_name }}"
+      state: import
+      login_user: root
+      login_password: "{{ mysql_root_password }}"
+      target: /etc/dumps/chembl_24/chembl_24_mysql/chembl_24_mysql.dmp
